@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Shield, Play, Pause, RotateCcw, Clock, Laptop, Monitor } from 'lucide-react';
+import { Volume2, VolumeX, Shield, Play, Pause, RotateCcw, Clock, Laptop, Monitor, Database, BarChart3 } from 'lucide-react';
 import { AppRound, UserRole } from '../types';
 import { isSoundEnabled, toggleSound, playTickSound } from '../utils/audio';
 
@@ -11,6 +11,7 @@ interface HeaderProps {
   onToggleRound2Timer: () => void;
   onResetRound2Timer: () => void;
   onNavigateRound?: (round: AppRound) => void;
+  onOpenAdminDashboard?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   userRole = 'admin',
   onToggleRound2Timer,
   onResetRound2Timer,
+  onOpenAdminDashboard,
 }) => {
   const [soundOn, setSoundOn] = React.useState(isSoundEnabled());
 
@@ -151,6 +153,20 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             {currentRound === 'final_podium' && 'Victory Podium'}
           </div>
+
+          {/* Admin Database & Live Monitor button: STRICTLY HIDDEN from participants (PART 16) */}
+          {userRole === 'admin' && onOpenAdminDashboard && (
+            <button
+              id="btn-open-admin-db"
+              type="button"
+              onClick={onOpenAdminDashboard}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              title="Open Live Database & Admin Monitor"
+            >
+              <Database className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden md:inline">Admin DB</span>
+            </button>
+          )}
 
           {/* Sound Toggle */}
           <button

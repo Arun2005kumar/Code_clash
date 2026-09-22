@@ -43,8 +43,8 @@ export const Round1Result: React.FC<Round1ResultProps> = ({
           Performance Scorecard
         </h1>
         <p className="text-slate-600 text-sm max-w-xl mx-auto mb-8">
-          Candidate Team: <span className="text-slate-900 font-bold">{participant.teamName || 'Byte Brawlers'}</span>{' '}
-          ({participant.leaderName || 'Arun Kumar'} • {participant.section || 'CSE'})
+          Candidate Team: <span className="text-slate-900 font-bold">{participant.teamName || 'Registered Team'}</span>{' '}
+          {participant.leaderName ? `(${participant.leaderName}${participant.section ? ` • ${participant.section}` : ''})` : ''}
         </p>
 
         {/* Big Marks Metric */}

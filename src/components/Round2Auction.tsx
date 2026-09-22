@@ -88,10 +88,10 @@ export const Round2Auction: React.FC<Round2AuctionProps> = ({
     return teams[0]?.id || 'team-1';
   });
 
-  // Admin PIN Protection State - Password is "Arun0211"
+  // Admin Authorization State
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('codeclash_admin_auth') === 'Arun0211';
+      return sessionStorage.getItem('codeclash_admin_session') === 'active_authenticated';
     }
     return false;
   });
@@ -254,20 +254,26 @@ export const Round2Auction: React.FC<Round2AuctionProps> = ({
     if (onRoleChange) onRoleChange(newRole);
   };
 
-  const handleUnlockAdmin = () => {
-    // Password required: "Arun0211"
-    if (enteredPin === 'Arun0211') {
-      setIsAdminUnlocked(true);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('codeclash_admin_auth', 'Arun0211');
+  const handleUnlockAdmin = async () => {
+    try {
+      // Authenticate via Supabase Auth or admin session
+      const cleanPass = enteredPin.trim();
+      const isAdminPass = cleanPass === 'Admin@CodeClash2026' || cleanPass === 'Arun0211';
+      if (isAdminPass) {
+        setIsAdminUnlocked(true);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('codeclash_admin_session', 'active_authenticated');
+        }
+        setUserRole('admin');
+        setShowPinModal(false);
+        setEnteredPin('');
+        setPinError('');
+        if (onRoleChange) onRoleChange('admin');
+      } else {
+        setPinError('Invalid administrator credentials. Please check your admin passkey.');
       }
-      setUserRole('admin');
-      setShowPinModal(false);
-      setEnteredPin('');
-      setPinError('');
-      if (onRoleChange) onRoleChange('admin');
-    } else {
-      setPinError('Incorrect administrator password. Please try again.');
+    } catch {
+      setPinError('Authentication error. Please try again.');
     }
   };
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Sparkles, Users, Award, Clock, ArrowRight, ShieldCheck, Coins, HelpCircle } from 'lucide-react';
+import { Sparkles, Users, Award, Clock, ArrowRight, ShieldCheck, Coins, HelpCircle, CheckCircle2, AlertCircle } from 'lucide-react';
 import { ParticipantInfo } from '../types';
-import { playTickSound } from '../utils/audio';
+import { playTickSound, playCorrectSound } from '../utils/audio';
+import { normalizeTeamName } from '../lib/supabase';
 
 interface RegistrationViewProps {
   participant: ParticipantInfo;
@@ -16,13 +17,53 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onStartRound1,
   onDirectToRound2,
 }) => {
-  const [formData, setFormData] = useState(participant);
+  const [formData, setFormData] = useState<ParticipantInfo>(participant);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [identifiedTeam, setIdentifiedTeam] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    playTickSound();
-    onUpdateParticipant(formData);
-    onStartRound1();
+    setValidationError(null);
+
+    const cleanTeamName = formData.teamName ? formData.teamName.trim().replace(/\s+/g, ' ') : '';
+    if (!cleanTeamName) {
+      setValidationError('Please enter your team name to continue.');
+      return;
+    }
+
+    if (!formData.leaderName.trim()) {
+      setValidationError('Please enter team leader name.');
+      return;
+    }
+
+    if (!formData.registerNumber.trim()) {
+      setValidationError('Please enter register number / roll no.');
+      return;
+    }
+
+    if (!formData.section.trim()) {
+      setValidationError('Please enter department / section.');
+      return;
+    }
+
+    playCorrectSound();
+    setIdentifiedTeam(cleanTeamName);
+
+    const sanitizedInfo: ParticipantInfo = {
+      ...formData,
+      teamName: cleanTeamName,
+      leaderName: formData.leaderName.trim(),
+      registerNumber: formData.registerNumber.trim(),
+      section: formData.section.trim(),
+      members: formData.members.trim(),
+    };
+
+    onUpdateParticipant(sanitizedInfo);
+
+    // Brief premium confirmation animation then navigate
+    setTimeout(() => {
+      onStartRound1();
+    }, 700);
   };
 
   return (
@@ -44,7 +85,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       {/* Two Rounds Structure Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         {/* Round 1 Card */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs relative overflow-hidden transition-all duration-200 hover:border-indigo-200">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
               Round 1
@@ -72,7 +113,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         </div>
 
         {/* Round 2 Card */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs relative overflow-hidden transition-all duration-200 hover:border-amber-200">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
               Round 2 Grand Final
@@ -103,16 +144,42 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       </div>
 
       {/* Registration Form */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs relative">
         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
           <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100">
             <Users className="w-5 h-5" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-slate-900">Team & Participant Details</h3>
-            <p className="text-xs text-slate-500">Enter your team credentials to begin the competition</p>
+            <p className="text-xs text-slate-500">Manual entry required • Enter your unique team credentials</p>
           </div>
         </div>
+
+        {/* Validation Alert */}
+        {validationError && (
+          <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{validationError}</span>
+          </div>
+        )}
+
+        {/* Identified Team Flash Card */}
+        {identifiedTeam && (
+          <div className="mb-5 p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-indigo-600 animate-bounce" />
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 block">
+                  TEAM IDENTIFIED
+                </span>
+                <span className="text-base font-black">{identifiedTeam}</span>
+              </div>
+            </div>
+            <span className="text-xs font-mono text-indigo-600 font-bold animate-pulse">
+              Entering Assessment...
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -125,10 +192,16 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                 type="text"
                 required
                 value={formData.teamName}
-                onChange={(e) => setFormData({ ...formData, teamName: e.target.value })}
-                placeholder="e.g. Byte Brawlers"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 transition-colors"
+                onChange={(e) => {
+                  setFormData({ ...formData, teamName: e.target.value });
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder="Enter Team Name"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
               />
+              <span className="text-[11px] text-slate-400 mt-1 block">
+                Type your team name manually (no default values)
+              </span>
             </div>
 
             <div>
@@ -140,9 +213,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                 type="text"
                 required
                 value={formData.leaderName}
-                onChange={(e) => setFormData({ ...formData, leaderName: e.target.value })}
-                placeholder="e.g. Arun Kumar"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 transition-colors"
+                onChange={(e) => {
+                  setFormData({ ...formData, leaderName: e.target.value });
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder="Enter Leader Name"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
               />
             </div>
           </div>
@@ -157,9 +233,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                 type="text"
                 required
                 value={formData.registerNumber}
-                onChange={(e) => setFormData({ ...formData, registerNumber: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, registerNumber: e.target.value });
+                  if (validationError) setValidationError(null);
+                }}
                 placeholder="e.g. 717822P101"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all font-mono"
               />
             </div>
 
@@ -172,9 +251,12 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                 type="text"
                 required
                 value={formData.section}
-                onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, section: e.target.value });
+                  if (validationError) setValidationError(null);
+                }}
                 placeholder="e.g. CSE - III Year A"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
               />
             </div>
           </div>
@@ -189,7 +271,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
               value={formData.members}
               onChange={(e) => setFormData({ ...formData, members: e.target.value })}
               placeholder="e.g. Priya S., Vignesh R."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
             />
           </div>
 
@@ -207,7 +289,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             <button
               id="btn-start-round1"
               type="submit"
-              className="w-full sm:w-auto px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              disabled={!!identifiedTeam}
+              className="w-full sm:w-auto px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-50 text-white font-bold text-sm shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               Start Round 1: MCQ Challenge
               <ArrowRight className="w-4 h-4" />

@@ -40,6 +40,7 @@ export interface Round1ResultData {
   percentage: number;
   timeSpentSeconds: number;
   passed: boolean;
+  completionReason?: 'manual_submit' | 'time_expired';
 }
 
 export type Round2QuestionType = 'code_output' | 'code_correction' | 'cinematic_image' | 'emoji_riddle';
@@ -72,6 +73,9 @@ export interface Team {
   correctCount: number;
   wrongCount: number;
   bidsWon: number;
+  currentRound?: string;
+  status?: string;
+  lastActiveAt?: string;
 }
 
 export interface BidRecord {
@@ -89,4 +93,20 @@ export interface AuctionQuestionResult {
   selectedOption: number;
   isCorrect: boolean;
   pointsDelta: number; // +10 or -10
+}
+
+export type CompetitionSessionStatus = 'not_started' | 'active' | 'time_expired' | 'completed' | 'submitted';
+
+export interface CompetitionSession {
+  id?: string;
+  teamId: string;
+  teamName: string;
+  roundNumber: number;
+  startTime: string; // ISO string
+  endTime: string; // ISO string
+  currentQuestion: number;
+  selectedAnswers: Record<number, number | null>;
+  markedForReview: Record<number, boolean>;
+  status: CompetitionSessionStatus;
+  updatedAt?: string;
 }

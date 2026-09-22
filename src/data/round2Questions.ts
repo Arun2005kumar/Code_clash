@@ -280,7 +280,7 @@ int main() {
 export const INITIAL_TEAMS = [
   {
     id: 'team-1',
-    name: 'Byte Brawlers',
+    name: '',
     avatar: '⚡',
     color: 'from-amber-500 to-orange-600',
     badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Coins, Trophy, Clock, ArrowRight, ShieldAlert, Sparkles, Code2, Film, Smile, Plus, Trash2 } from 'lucide-react';
+import { Coins, Trophy, Clock, ArrowRight, ShieldAlert, Sparkles, Code2, Film, Smile, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Team, ParticipantInfo } from '../types';
 import { playGavelSound, playTickSound } from '../utils/audio';
 
@@ -8,6 +8,7 @@ interface Round2IntroProps {
   participant: ParticipantInfo;
   onUpdateTeams: (teams: Team[]) => void;
   onStartAuction: () => void;
+  onUpdateParticipant?: (info: ParticipantInfo) => void;
 }
 
 export const Round2Intro: React.FC<Round2IntroProps> = ({
@@ -15,20 +16,60 @@ export const Round2Intro: React.FC<Round2IntroProps> = ({
   participant,
   onUpdateTeams,
   onStartAuction,
+  onUpdateParticipant,
 }) => {
+  // If participant already entered a valid team name (e.g. from Round 1 or stored session), share it.
+  // Otherwise, start strictly empty so the user must manually enter it.
+  const [myTeamName, setMyTeamName] = useState<string>(participant.teamName ? participant.teamName.trim() : '');
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const [editableTeams, setEditableTeams] = useState<Team[]>(() => {
-    // If student entered a custom team name in Round 1, update Team 1 with it
-    if (participant.teamName && teams[0]) {
-      return teams.map((t, idx) => (idx === 0 ? { ...t, name: participant.teamName } : t));
-    }
-    return teams;
+    return teams.map((t, idx) => {
+      if (idx === 0) {
+        return {
+          ...t,
+          name: participant.teamName ? participant.teamName.trim() : '',
+        };
+      }
+      return t;
+    });
   });
 
   const [newTeamName, setNewTeamName] = useState('');
 
+  React.useEffect(() => {
+    if (participant.teamName && participant.teamName.trim()) {
+      const clean = participant.teamName.trim();
+      setMyTeamName(clean);
+      setEditableTeams((prev) =>
+        prev.map((t, idx) => (idx === 0 ? { ...t, name: clean } : t))
+      );
+    }
+  }, [participant.teamName]);
+
   const handleStart = () => {
+    const cleanTeamName = myTeamName.trim().replace(/\s+/g, ' ');
+    if (!cleanTeamName) {
+      setValidationError('Please enter your team name to continue.');
+      return;
+    }
+
+    setValidationError(null);
     playGavelSound();
-    onUpdateTeams(editableTeams);
+
+    // Ensure Team 0 gets this team name
+    const updated = editableTeams.map((t, idx) =>
+      idx === 0 ? { ...t, name: cleanTeamName } : t
+    );
+
+    if (onUpdateParticipant) {
+      onUpdateParticipant({
+        ...participant,
+        teamName: cleanTeamName,
+      });
+    }
+
+    onUpdateTeams(updated);
     onStartAuction();
   };
 
@@ -118,6 +159,44 @@ export const Round2Intro: React.FC<Round2IntroProps> = ({
           </div>
         </div>
 
+        {/* Mandatory Team Name Entry for Round 2 */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-8 text-left max-w-xl mx-auto space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              ROUND 2 • YOUR TEAM NAME <span className="text-indigo-600">*</span>
+            </label>
+            {participant.teamName && (
+              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Shared from Round 1
+              </span>
+            )}
+          </div>
+          <input
+            id="input-round2-team-name"
+            type="text"
+            placeholder="Enter Team Name"
+            value={myTeamName}
+            onChange={(e) => {
+              setMyTeamName(e.target.value);
+              if (validationError) setValidationError(null);
+              // Also sync to Team 0 in editableTeams
+              setEditableTeams((prev) =>
+                prev.map((t, idx) => (idx === 0 ? { ...t, name: e.target.value } : t))
+              );
+            }}
+            className="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 placeholder-slate-400 transition-all"
+          />
+          {validationError && (
+            <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{validationError}</span>
+            </div>
+          )}
+          <span className="text-[11px] text-slate-400 block">
+            Team name must be manually entered before entering the arena.
+          </span>
+        </div>
+
         {/* Scoring & Bidding Rule Banner */}
         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 max-w-2xl mx-auto mb-8 font-mono text-xs sm:text-sm text-center space-y-1.5">
           <span className="text-slate-500 block text-[11px] font-sans uppercase font-bold tracking-wider">
@@ -141,7 +220,7 @@ export const Round2Intro: React.FC<Round2IntroProps> = ({
           <button
             id="btn-launch-auction-arena"
             onClick={handleStart}
-            className="px-8 sm:px-12 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-base shadow-xs flex items-center justify-center gap-3 mx-auto transition-all cursor-pointer"
+            className="px-8 sm:px-12 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-base shadow-xs flex items-center justify-center gap-3 mx-auto transition-all cursor-pointer"
           >
             <span>ENTER THE AUCTION ARENA</span>
             <ArrowRight className="w-5 h-5 text-white" />
@@ -178,7 +257,11 @@ export const Round2Intro: React.FC<Round2IntroProps> = ({
                   <input
                     type="text"
                     value={team.name}
-                    onChange={(e) => handleUpdateName(team.id, e.target.value)}
+                    placeholder={idx === 0 ? 'Your Team Name' : `Team ${idx + 1}`}
+                    onChange={(e) => {
+                      handleUpdateName(team.id, e.target.value);
+                      if (idx === 0) setMyTeamName(e.target.value);
+                    }}
                     className="w-full bg-transparent border-b border-slate-300 focus:border-indigo-600 text-sm font-bold text-slate-900 focus:outline-none py-0.5 truncate"
                   />
                   <span className="text-[11px] font-mono text-amber-700 flex items-center gap-1 font-semibold">
@@ -187,7 +270,7 @@ export const Round2Intro: React.FC<Round2IntroProps> = ({
                 </div>
               </div>
 
-              {editableTeams.length > 2 && (
+              {editableTeams.length > 2 && idx !== 0 && (
                 <button
                   type="button"
                   onClick={() => handleRemoveTeam(team.id)}
